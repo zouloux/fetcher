@@ -13,15 +13,15 @@ interface IUser {
     name:string
 }
 
-// At project / library level ...
-const fetchUser = createFetcher<[number], {name:string}>({
+// Create a new fetcher, usable everywhere in your project
+const fetchUser = createFetcher<[number], IUser>({
     base: '/api/1.0',
     buildURI (request, args) {
         return `get-user/${args[0]}`
     }
 })
 
-// At local / dev level
+// Somewhere else in your code ...
 const user = await fetchUser( 12 )
 console.log(user.name) // Jean-Mi
 ```
@@ -29,8 +29,6 @@ console.log(user.name) // Jean-Mi
 ## Example with complex types :
 
 ```typescript
-
-
 // RestFetcher request type descriptors
 type RestFetcher = {
     // Arguments of the fetcher
@@ -125,7 +123,8 @@ const myThunkFetcher = createFetcher({
     }
 })
 
-myThunkFetcher('Arg1', 'Arg2')
+// ...
+await myThunkFetcher('Arg1', 'Arg2')
 
 ```
 
