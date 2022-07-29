@@ -2,8 +2,8 @@
   "name": "@zouloux/fetcher",
   "version": "0.1.0",
   "description": "",
-  "main": "./dist/index.es2017.cjs",
-  "module": "./dist/index.es2020.mjs",
+  "main": "./dist/index.es2019.cjs",
+  "module": "./dist/index.es2022.mjs",
   "unpkg": "./dist/index.es2017.min.js",
   "types": "./dist/index.d.ts",
   "scripts": {
@@ -31,8 +31,8 @@
   },
   "homepage": "https://github.com/zouloux/fetcher#readme",
   "devDependencies": {
-    "@types/node": "^18.0.3",
-    "@zouloux/tsbundle": "^1.2.17"
+    "@types/node": "^18.6.2",
+    "@zouloux/tsbundle": "^1.3.0"
   },
   "tsbundle": {
     "exportMap": {

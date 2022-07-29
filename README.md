@@ -1,6 +1,6 @@
 # fetcher
 
-Fetcher is a ![less than 1kb](./bits/index.es2017.min.js.svg) helper to build pre-configured fetch functions with strict type.
+Fetcher is a ![](./bits/index.es2017.min.js.svg) helper to build pre-configured fetch functions with strict type.
 
 ## Quick example
 
@@ -131,3 +131,4 @@ await myThunkFetcher('Arg1', 'Arg2')
 
 ##### TODO : Finish implementation
 ##### TODO : Finish doc
+##### TODO : Make loader
