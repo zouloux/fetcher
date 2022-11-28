@@ -1,6 +1,6 @@
 {
   "name": "@zouloux/fetcher",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "./dist/index.es2019.cjs",
   "module": "./dist/index.es2022.mjs",

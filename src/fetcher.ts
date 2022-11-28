@@ -62,9 +62,9 @@ export function createFetcher
 		// Create request init object from default request in fetcher options
 		const request:RequestInit = { ...fetcherOptions.request }
 		// Build uri
-		let uri = fetcherOptions.base
+		let uri = fetcherOptions.base ?? ''
 		if ( fetcherOptions.buildURI )
-			uri = fetcherOptions.buildURI( request, rest )
+			uri += fetcherOptions.buildURI( request, rest )
 		// Build get parameters
 		if ( fetcherOptions.buildGet ) {
 			let getParameters = fetcherOptions.buildGet( request, rest )
