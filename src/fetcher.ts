@@ -49,7 +49,7 @@ interface FetcherOptions <TArguments extends any[], TResponse extends any> {
 	// Filter response
 	filterResponse 	?:( response:TResponse, fetcherArguments:TArguments) => TResponse
 	// Custom error handler
-	errorHandler	?:( data:TResponse|any, error:Error, fetcherArguments:TArguments, resolve:(response:TResponse) => void, reject:(response:TResponse|Error) => void) => any|void
+	errorHandler	?:( response:TResponse|Response, error:Error, fetcherArguments:TArguments, resolve:(response:TResponse) => void, reject:(response:TResponse|Error) => void) => any|void
 }
 
 export function createFetcher
@@ -96,7 +96,7 @@ export function createFetcher
 		}
 		// We can now execute the fetch and return the associated promise
 		return new Promise<TResponse>( (resolve, reject) => {
-			function errorHandler ( data:TResponse, error:Error ) {
+			function errorHandler ( data:TResponse|Response, error:Error ) {
 				if ( !fetcherOptions.errorHandler )
 					reject( error )
 				else
@@ -106,6 +106,12 @@ export function createFetcher
 			fetch( uri, request )
 			// Parse data type
 			.then( async data => {
+				// Response is not OK ( 404 / 500 )...
+				// Go straight to errorHandler
+				if ( !data.ok ) {
+					errorHandler( data, null )
+					return;
+				}
 				try {
 					if ( fetcherOptions.responseType === "text" )
 						return await data.text()
@@ -137,7 +143,7 @@ export function createFetcher
 					}
 				}
 			})
-			// Catch errors
+			// Catch other errors
 			.catch( error => errorHandler( null, error ) )
 		})
 	}
