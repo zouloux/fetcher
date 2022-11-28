@@ -117,24 +117,24 @@ const myThunkFetcher = createFetcher({
         remove.value = randomGlobalValue
         return resposne
     },
-	// Custom error handler
-	// If implement, resolve or reject need to be called !
+    // Custom error handler
+    // If implement, resolve or reject need to be called !
     errorHandler ( response, error, args, resolve, reject ) {
-		// -> Here response can either be the Response generic or the fetch's Response object
-		// ( fetch's Response )
-		if ( response instanceof Response ) {
-			if ( !response.ok )
-				reject({ message: 'Invalid resource' })
-			else 
-				resolve({
-					// Custom data fallback
-				})
-		}
+        // -> Here response can either be the Response generic or the fetch's Response object
+        // ( fetch's Response )
+        if ( response instanceof Response ) {
+            if ( !response.ok )
+                reject({ message: 'Invalid resource' })
+            else 
+                resolve({
+                    // Custom data fallback
+                })
+        }
         // If any error is caught ( not found / json decode / exec error in filter ... )
-		if ( typeof response === "object" && !data.success )
-			reject({ message: `Invalid API call` })
-		else
-			reject( error )
+        if ( typeof response === "object" && !data.success )
+            reject({ message: `Invalid API call` })
+        else
+            reject( error )
     }
 })
 
