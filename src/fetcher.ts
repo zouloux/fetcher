@@ -5,52 +5,70 @@
  */
 
 /**
- * - create basic fetcher
- * const fetcherExample = createFetcher({
- *     base: base + '/api/',
- * })
- *
- *
- * await userFetcher('get-current-user')
- */
-
-/**
- * Types de fetcher
- * - text
- * - json
- * - dom
- * - blob (img / audio)
- */
-
-/**
  * TODO : Should be cancellable !
  */
-
-
 // class CancellablePromise <T> extends Promise<T> {
 // 	cancel () {
 //
 // 	}
 // }
 
+// ----------------------------------------------------------------------------- STRUCT
+
 type FetcherType = "text" | "json" | "dom" | "blob"
 
 type FetcherParametersObject = Record<string|number, string|number|boolean>
 
+type TErrorHandler <TArguments extends any[], TResponse extends any> =
+	( error:Error, fetcherArguments:TArguments, resolve:(response:TResponse) => void, reject:(response:Error) => void) => any|void
+
+type Fetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
 interface FetcherOptions <TArguments extends any[], TResponse extends any> {
-	// Request
+	// Request options
 	base			?:string
 	request			?:RequestInit
 	buildURI		?:( request:RequestInit, fetcherArguments:TArguments) => string
 	buildGet		?:( request:RequestInit, fetcherArguments:TArguments) => FetcherParametersObject|string
 	buildBody		?:( request:RequestInit, fetcherArguments:TArguments) => FetcherParametersObject|FormData|string
-	// Response
+	/**
+	 * Response type, default is JSON
+	 */
 	responseType	?:FetcherType
-	// Filter response
-	filterResponse 	?:( response:TResponse, fetcherArguments:TArguments) => TResponse
-	// Custom error handler
-	errorHandler	?:( response:TResponse|Response, error:Error, fetcherArguments:TArguments, resolve:(response:TResponse) => void, reject:(response:TResponse|Error) => void) => any|void
+	/**
+	 * Filter response after response type decoding.
+	 */
+	filterResponse 	?:( response:TResponse, fetcherArguments:TArguments) => TResponse|Promise<TResponse>
+	/**
+	 * Check if a fetch response is ok. By default it returns response.ok
+	 */
+	isResponseOK	?:(response:Response) => boolean
+	/**
+	 * Custom error handler.
+	 * If false, no error will be thrown and the fetcher will simply return null in case of error.
+	 */
+	errorHandler	?:( TErrorHandler<TArguments, TResponse> | false )
+	/**
+	 * Override fetch with a custom function
+	 * useful for usage with node-fetch in a node env
+	 */
+	fetchFunction	?:Fetch
 }
+
+// ----------------------------------------------------------------------------- FETCHER ERROR
+
+export class FetcherError extends Error {
+	fetchResponse	:Response
+}
+
+function createFetchError ( message:string, fetchResponse:Response ) {
+	const error = new FetcherError()
+	error.message = message
+	error.fetchResponse = fetchResponse
+	return error
+}
+
+// ----------------------------------------------------------------------------- CREATE FETCHER
 
 export function createFetcher
 	<TArguments extends any[], TResponse extends any>
@@ -58,6 +76,8 @@ export function createFetcher
 {
 	// Return a thunk fetcher
 	return ( ...rest:TArguments ):Promise<TResponse> => {
+		// Custom or native fetch function
+		const _F:Fetch = fetcherOptions.fetchFunction ?? fetch
 		// Create request init object from default request in fetcher options
 		const request:RequestInit = { ...fetcherOptions.request }
 		// Build uri
@@ -96,119 +116,58 @@ export function createFetcher
 		}
 		// We can now execute the fetch and return the associated promise
 		return new Promise<TResponse>( (resolve, reject) => {
-			function errorHandler ( data:TResponse|Response, error:Error ) {
-				if ( !fetcherOptions.errorHandler )
-					reject( error )
-				else
-					fetcherOptions.errorHandler( data, error, rest, resolve, reject )
-			}
 			// Execute request
-			fetch( uri, request )
+			_F( uri, request )
 			// Parse data type
-			.then( async data => {
-				// Response is not OK ( 404 / 500 )...
-				// Go straight to errorHandler
-				if ( !data.ok ) {
-					errorHandler( data, null )
-					return;
+			.then( async response => {
+				// Check if fetch response is OK
+				const isOK = (
+					fetcherOptions.isResponseOK
+					? fetcherOptions.isResponseOK( response )
+					: response.ok
+				)
+				// Not OK, create and throw a fetcher error
+				if ( !isOK )
+					throw createFetchError("fetchError", response)
+				// Transform to TEXT
+				if ( fetcherOptions.responseType === "text" )
+					return await response.text()
+				// Transform to JSON
+				else if ( !fetcherOptions.responseType || fetcherOptions.responseType === "json" )
+					return await response.json()
+				// Transform to DOM
+				else if ( fetcherOptions.responseType === "dom" ) {
+					const container = document.createElement('div')
+					container.innerHTML = await response.text()
+					return container.firstChild
 				}
-				try {
-					if ( fetcherOptions.responseType === "text" )
-						return await data.text()
-					else if ( fetcherOptions.responseType === "json" )
-						return await data.json()
-					else if ( fetcherOptions.responseType === "dom" ) {
-						const container = document.createElement('div')
-						container.innerHTML = await data.text()
-						return container.firstChild
-					}
-					else if ( fetcherOptions.responseType === "blob" )
-						return data.blob()
-				}
-				catch ( error ) {
-					errorHandler( data as any, error )
-				}
+				// Transform to BLOB
+				else if ( fetcherOptions.responseType === "blob" )
+					return response.blob()
+				// Invalid response type
+				throw createFetchError("invalidResponseType", response)
 			})
 			// Parse and filter response
-			.then( data => {
-				if ( !fetcherOptions.filterResponse )
-					resolve( data )
-				// Filter response
-				else {
-					try {
-						data = fetcherOptions.filterResponse( data, rest )
-					}
-					catch ( error ) {
-						errorHandler( data, error )
-					}
-				}
+			.then( data => (
+				fetcherOptions.filterResponse
+				? fetcherOptions.filterResponse( data, rest )
+				: data
+			))
+			// Finally, resolve and catch
+			.then( resolve ).catch( ( error:Error ) => {
+				// Shorthand : Never throw if errorHandler is set to false
+				// We simply return null
+				if ( fetcherOptions.errorHandler === false )
+					resolve( null )
+				// Error handler is not set
+				// Reject directly
+				else if ( !fetcherOptions.errorHandler )
+					reject( error )
+				// Pass through error handler
+				// This function needs to call resolve or reject to resolve Promise
+				else
+					fetcherOptions.errorHandler( error, rest, resolve, reject )
 			})
-			// Catch other errors
-			.catch( error => errorHandler( null, error ) )
 		})
 	}
 }
-
-// -----------------------------------------------------------------------------
-/*
-
-interface IUser {
-	id:number
-	name:string
-}
-type RestFetcher = {
-	args: ['get-user', { id:number }],
-	response: IUser
-} | {
-	args: [`get-user/${number}`],
-	response: IUser
-}
-
-const restFetcher = createFetcher<RestFetcher["args"], RestFetcher["response"]>({
-	base: '/api/1.0/',
-	buildURI ( request, args ) {
-		return args[0] + '/' + args[1].id
-	},
-	buildBody ( request, args ) {
-		return args[1]
-	}
-})
-
-const result1 = await restFetcher('get-user', { id: 12 })
-
-const result2 = await restFetcher('get-user/12')
-
-
-
-
-
-interface RestFetcherOptions<TArguments extends any[], TResponse extends any> extends FetcherOptions<TArguments, TResponse> {
-	// TODO : minus type
-	// TODO : Minus buildBody
-	// TODO : Minus buildGet
-}
-
-export function createRestFetcher
-	<TArguments extends any[], TResponse extends any>
-	( fetcherOptions:RestFetcherOptions<TArguments, TResponse>, fetchOptions:RequestInit )
-{
-	// TODO : Configure with send post as json, receive as json
-}
-*/
-
-/*
-export function createJSONFetcher
-	<TArguments extends any[], TResponse extends any>
-	( baseOptions:JSONFetcherOptions<TArguments>,  ) {
-	return ( ...rest:TArguments ) => {
-
-		return new Promise<TResponse>( (resolve, reject) => {
-			fetch( basePath + path, {
-				cache
-			})
-			.then( d => d?.json?.() )
-			.then( d => resolve( d ) )
-			.catch( reject )
-		})
-	}
-}*/

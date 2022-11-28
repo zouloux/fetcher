@@ -104,7 +104,7 @@ const myThunkFetcher = createFetcher({
             b: args[1]
         }
     },
-    // Available response types
+    // Available response types ( default is json )
     responseType : "text" | "json" | "dom" | "blob",
     // Will filter the response given from the server
     filterResponse ( response, args ) {
@@ -118,32 +118,22 @@ const myThunkFetcher = createFetcher({
         return resposne
     },
     // Custom error handler
-    // If implement, resolve or reject need to be called !
-    errorHandler ( response, error, args, resolve, reject ) {
-        // -> Here response can either be the Response generic or the fetch's Response object
-        // ( fetch's Response )
-        if ( response instanceof Response ) {
-            if ( !response.ok )
-                reject({ message: 'Invalid resource' })
-            else 
-                resolve({
-                    // Custom data fallback
-                })
-        }
-        // If any error is caught ( not found / json decode / exec error in filter ... )
-        if ( typeof response === "object" && !data.success )
-            reject({ message: `Invalid API call` })
-        else
-            reject( error )
-    }
+    // If implemented, resolve or reject need to be called !
+    errorHandler ( error, args, resolve, reject ) {
+		// ... either resolve or reject with custom behavior
+		// Error can be FetcherError in case of HTTP or DNS error
+		// FetcherError has a .response property which point to the fetch response. 
+    },
+    // Shorthand : If errorHandler is set to false, no error will be thrown,
+    // and promise will be resolved with null in case of error
+    errorHandler: false,
+	// Custom check if fetch response is OK
+	// Here response is right after fetch ( @see Response )
+	// By default, will check if response.ok is true
+	isResponseOK: response => response.ok
 })
 
 // ...
 await myThunkFetcher('Arg1', 'Arg2')
 
 ```
-
-
-##### TODO : Finish implementation
-##### TODO : Finish doc
-##### TODO : Make loader
