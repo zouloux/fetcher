@@ -33,8 +33,6 @@
 // 	}
 // }
 
-
-
 type FetcherType = "text" | "json" | "dom" | "blob"
 
 type FetcherParametersObject = Record<string|number, string|number|boolean>
@@ -48,9 +46,10 @@ interface FetcherOptions <TArguments extends any[], TResponse extends any> {
 	buildBody		?:( request:RequestInit, fetcherArguments:TArguments) => FetcherParametersObject|FormData|string
 	// Response
 	responseType	?:FetcherType
-	// FIXME : Can throw if response.error or !response.success
+	// Filter response
 	filterResponse 	?:( response:TResponse, fetcherArguments:TArguments) => TResponse
-	filterError		?:( response:TResponse, fetcherArguments:TArguments) => TResponse
+	// Custom error handler
+	errorHandler	?:( data:TResponse|any, error:Error, fetcherArguments:TArguments, resolve:(response:TResponse) => void, reject:(response:TResponse|Error) => void) => any|void
 }
 
 export function createFetcher
@@ -58,7 +57,7 @@ export function createFetcher
 	( fetcherOptions:FetcherOptions<TArguments, TResponse> )
 {
 	// Return a thunk fetcher
-	return ( ...rest:TArguments ) => {
+	return ( ...rest:TArguments ):Promise<TResponse> => {
 		// Create request init object from default request in fetcher options
 		const request:RequestInit = { ...fetcherOptions.request }
 		// Build uri
@@ -97,42 +96,49 @@ export function createFetcher
 		}
 		// We can now execute the fetch and return the associated promise
 		return new Promise<TResponse>( (resolve, reject) => {
+			function errorHandler ( data:TResponse, error:Error ) {
+				if ( !fetcherOptions.errorHandler )
+					reject( error )
+				else
+					fetcherOptions.errorHandler( data, error, rest, resolve, reject )
+			}
 			// Execute request
 			fetch( uri, request )
 			// Parse data type
 			.then( async data => {
-				if ( fetcherOptions.responseType === "text" )
-					return await data.text()
-				else if ( fetcherOptions.responseType === "json" )
-					return await data.json()
-				else if ( fetcherOptions.responseType === "dom" ) {
-					const container = document.createElement('div')
-					container.innerHTML = await data.text()
-					return container.firstChild
+				try {
+					if ( fetcherOptions.responseType === "text" )
+						return await data.text()
+					else if ( fetcherOptions.responseType === "json" )
+						return await data.json()
+					else if ( fetcherOptions.responseType === "dom" ) {
+						const container = document.createElement('div')
+						container.innerHTML = await data.text()
+						return container.firstChild
+					}
+					else if ( fetcherOptions.responseType === "blob" )
+						return data.blob()
 				}
-				else if ( fetcherOptions.responseType === "blob" )
-					return data.blob()
+				catch ( error ) {
+					errorHandler( data as any, error )
+				}
 			})
 			// Parse and filter response
 			.then( data => {
+				if ( !fetcherOptions.filterResponse )
+					resolve( data )
 				// Filter response
-				if ( fetcherOptions.filterResponse ) {
+				else {
 					try {
 						data = fetcherOptions.filterResponse( data, rest )
 					}
 					catch ( error ) {
-						reject( error )
-						return
+						errorHandler( data, error )
 					}
 				}
-				resolve( data )
 			})
 			// Catch errors
-			.catch( data => {
-				if ( fetcherOptions.filterError )
-					data = fetcherOptions.filterError( data, rest )
-				resolve( data )
-			})
+			.catch( error => errorHandler( null, error ) )
 		})
 	}
 }

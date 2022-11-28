@@ -15,7 +15,7 @@ interface IUser {
 
 // Create a new fetcher, usable everywhere in your project
 const fetchUser = createFetcher<[number], IUser>({
-    base: '/api/1.0',
+    base: '/api/1.0/',
     buildURI (request, args) {
         return `get-user/${args[0]}`
     }
@@ -23,6 +23,7 @@ const fetchUser = createFetcher<[number], IUser>({
 
 // Somewhere else in your code ...
 const user = await fetchUser( 12 )
+// Executed : fetch('/api/1.0/get-user/12')
 console.log(user.name) // Jean-Mi
 ```
 
@@ -116,10 +117,14 @@ const myThunkFetcher = createFetcher({
         remove.value = randomGlobalValue
         return resposne
     },
-    filterError ( error, args ) {
-        // Same but for the error
-        // Cannot go back to a non error state (throw will do nothing)
-        return error
+	// Custom error handler
+	// If implement, resolve or reject need to be called !
+    errorHandler ( data, error, args, resolve, reject ) {
+        // If any error is caught ( not found / json decode / exec error in filter ... )
+		if ( typeof data === "object" && !data.success )
+			reject( new Error(`Invalid API call`) )
+		else
+			reject( error )
     }
 })
 
