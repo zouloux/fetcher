@@ -120,17 +120,17 @@ const myThunkFetcher = createFetcher({
     // Custom error handler
     // If implemented, resolve or reject need to be called !
     errorHandler ( error, args, resolve, reject ) {
-		// ... either resolve or reject with custom behavior
-		// Error can be FetcherError in case of HTTP or DNS error
-		// FetcherError has a .response property which point to the fetch response. 
+        // ... either resolve or reject with custom behavior
+        // Error can be FetcherError in case of HTTP or DNS error
+        // FetcherError has a .response property which point to the fetch response. 
     },
     // Shorthand : If errorHandler is set to false, no error will be thrown,
     // and promise will be resolved with null in case of error
     errorHandler: false,
-	// Custom check if fetch response is OK
-	// Here response is right after fetch ( @see Response )
-	// By default, will check if response.ok is true
-	isResponseOK: response => response.ok
+    // Custom check if fetch response is OK
+    // Here response is right after fetch ( @see Response )
+    // By default, will check if response.ok is true
+    isResponseOK: response => response.ok
 })
 
 // ...
