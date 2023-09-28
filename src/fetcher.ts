@@ -24,13 +24,37 @@ type TErrorHandler <TArguments extends any[], TResponse extends any> =
 
 type Fetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-interface FetcherOptions <TArguments extends any[], TResponse extends any> {
-	// Request options
+type TFetcherOptionBuilder <GReturn, GArguments> = ( fetcherArguments:GArguments, request:RequestInit ) => GReturn
+type TFetcherOptionBuilderOrValue <GReturn, GArguments> = TFetcherOptionBuilder<GReturn, GReturn> | GReturn
+
+interface FetcherOptions <GArguments extends any[], GResponse extends any> {
+	/**
+	 * Base is the part prepend before the path parameter
+	 */
 	base			?:string
-	request			?:RequestInit
-	buildURI		?:( request:RequestInit, fetcherArguments:TArguments) => string
-	buildGet		?:( request:RequestInit, fetcherArguments:TArguments) => FetcherParametersObject|string
-	buildBody		?:( request:RequestInit, fetcherArguments:TArguments) => FetcherParametersObject|FormData|string
+
+	/**
+	 * Custom request init object
+	 */
+	requestInit		?:RequestInit
+
+	/**
+	 * Path to the fetched resource.
+	 * Will have base prepend.
+	 */
+	path			:TFetcherOptionBuilderOrValue<string, GArguments>
+
+	/**
+	 * Get parameters sent.
+	 * Will add those parameters after a "?" on the path, even if the method is not GET
+	 */
+	parameters		:TFetcherOptionBuilderOrValue<FetcherParametersObject, GArguments>
+
+	method			:""
+
+	body			:TFetcherOptionBuilderOrValue<BodyInit, GArguments>
+
+	// filterRequestInit	:TFetcherOptionBuilderOrValue<void, GArguments>
 	/**
 	 * Response type, default is JSON
 	 */
@@ -38,7 +62,7 @@ interface FetcherOptions <TArguments extends any[], TResponse extends any> {
 	/**
 	 * Filter response after response type decoding.
 	 */
-	filterResponse 	?:( response:TResponse, fetcherArguments:TArguments) => TResponse|Promise<TResponse>
+	filterResponse 	?:( response:GResponse, fetcherArguments:GArguments) => GResponse|Promise<GResponse>
 	/**
 	 * Check if a fetch response is ok. By default it returns response.ok
 	 */
@@ -47,7 +71,7 @@ interface FetcherOptions <TArguments extends any[], TResponse extends any> {
 	 * Custom error handler.
 	 * If false, no error will be thrown and the fetcher will simply return null in case of error.
 	 */
-	errorHandler	?:( TErrorHandler<TArguments, TResponse> | false )
+	errorHandler	?:( TErrorHandler<GArguments, GResponse> | false )
 	/**
 	 * Override fetch with a custom function
 	 * useful for usage with node-fetch in a node env
@@ -79,7 +103,8 @@ export function createFetcher
 		// Custom or native fetch function
 		const _F:Fetch = fetcherOptions.fetchFunction ?? fetch
 		// Create request init object from default request in fetcher options
-		const request:RequestInit = { ...fetcherOptions.request }
+		const request:RequestInit = { ...fetcherOptions.requestInit }
+		//request.
 		// Build uri
 		let uri = fetcherOptions.base ?? ''
 		if ( fetcherOptions.buildURI )
